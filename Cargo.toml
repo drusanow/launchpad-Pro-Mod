@@ -2,6 +2,7 @@
 members = [
   ".",
   "xtask",
+  "seq95",
 ]
 default-members = ["."]
 resolver = "2"
@@ -57,6 +58,7 @@ heapless = { version = "0.9.3", optional = true }
 spi-memory = { version = "0.2.0", optional = true }
 static_cell = { version = "2.1.1", optional = true }
 stm32-metapac = { version = "21.0.0", optional = true }
+seq95 = { path = "seq95", optional = true }
 
 [features]
 default = []
@@ -143,6 +145,7 @@ launchpad-pro = [
 
 launchpad-pro-mk3 = [
   "pressure-sensitive",
+  "dep:seq95",
   "rgb-color",
   "dep:critical-section",
   "dep:embassy-embedded-hal",

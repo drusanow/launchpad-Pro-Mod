@@ -140,6 +140,14 @@ pub trait Driver {
     fn roadrunner_stats(&mut self) -> Option<Option<RoadrunnerStats>> {
         None
     }
+    #[cfg(feature = "launchpad-pro-mk3")]
+    fn read_project_slot(&mut self, _slot: u8, _offset: u32, _data: &mut [u8]) -> bool {
+        false
+    }
+    #[cfg(feature = "launchpad-pro-mk3")]
+    fn write_project_slot(&mut self, _slot: u8, _data: &[u8], _owned: fn(&[u8]) -> bool) -> bool {
+        false
+    }
 }
 
 struct DriverSlot {
@@ -258,4 +266,14 @@ pub fn flash_info() -> Option<FlashInfo> {
 #[cfg(feature = "launchpad-pro-mk3")]
 pub fn roadrunner_stats() -> Option<Option<RoadrunnerStats>> {
     with(|driver| driver.roadrunner_stats()).flatten()
+}
+
+#[cfg(feature = "launchpad-pro-mk3")]
+pub fn read_project_slot(slot: u8, offset: u32, data: &mut [u8]) -> bool {
+    with(|driver| driver.read_project_slot(slot, offset, data)).unwrap_or(false)
+}
+
+#[cfg(feature = "launchpad-pro-mk3")]
+pub fn write_project_slot(slot: u8, data: &[u8], owned: fn(&[u8]) -> bool) -> bool {
+    with(|driver| driver.write_project_slot(slot, data, owned)).unwrap_or(false)
 }

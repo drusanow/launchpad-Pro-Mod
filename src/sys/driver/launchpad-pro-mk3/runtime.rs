@@ -299,6 +299,14 @@ impl Driver for RuntimeDriver {
     fn roadrunner_stats(&mut self) -> Option<Option<RoadrunnerStats>> {
         Some(self.link.roadrunner_stats_inquiry(100))
     }
+
+    fn read_project_slot(&mut self, slot: u8, offset: u32, data: &mut [u8]) -> bool {
+        self.flash.read_project_slot(slot as u32, offset, data)
+    }
+
+    fn write_project_slot(&mut self, slot: u8, data: &[u8], owned: fn(&[u8]) -> bool) -> bool {
+        self.flash.write_project_slot(slot as u32, data, owned)
+    }
 }
 
 pub struct M0Link {

@@ -36,6 +36,18 @@ Alternatively, download the `.syx` file from the [releases page](../../releases)
 - Programmer Mode
 - Custom boot animation
 
+## Seq95 step sequencer (this fork)
+
+This fork adds **Seq95** to the Launchpad Pro Mk3 build. It's a
+Launchpad95-style hardware step sequencer with 5 tracks (drum or melodic),
+per-step probability, live transposition, scales, internal/external clock and
+8 project slots. Press **Custom** to enter and leave it; it keeps playing in
+the background. See [docs/seq95.md](docs/seq95.md) for the full guide.
+
+Changes made in this fork (GPL-3.0 §5): the new `seq95/` crate, `src/app/seq95/`,
+the Custom-button and MIDI routing in `src/app/host.rs`, and project-slot
+storage in `src/sys/driver/common/storage/external.rs` and the Pro Mk3 driver.
+
 ## Device Support
 
 Novation Launchpad support:

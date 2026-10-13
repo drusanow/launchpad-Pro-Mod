@@ -1,0 +1,12 @@
+[package]
+name = "seq95"
+version = "0.1.0"
+edition.workspace = true
+publish = false
+license.workspace = true
+description = "Launchpad95-style hardware step sequencer core (5 tracks, drum + melodic)"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]

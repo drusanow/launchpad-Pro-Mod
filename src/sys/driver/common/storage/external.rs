@@ -49,6 +49,20 @@ const _: () = assert!(LEGACY_SETTINGS_OFFSET == 0x00ff_e000);
 #[cfg(feature = "launchpad-pro-mk3")]
 const _: () = assert!(SETTINGS_OFFSET == 0x00ff_e100);
 
+// Seq95 project slots. Far away from the stock firmware's data at the start
+// and the settings at the end of the chip. Writes are additionally refused for
+// any sector that holds data not written by Seq95 (see `write_project_slot`).
+#[cfg(feature = "launchpad-pro-mk3")]
+pub const PROJECT_REGION_OFFSET: u32 = 0x00f0_0000;
+#[cfg(feature = "launchpad-pro-mk3")]
+pub const PROJECT_SLOT_SIZE: u32 = 2 * SECTOR_SIZE as u32;
+#[cfg(feature = "launchpad-pro-mk3")]
+pub const PROJECT_SLOT_COUNT: u32 = 8;
+#[cfg(feature = "launchpad-pro-mk3")]
+const _: () = assert!(
+    PROJECT_REGION_OFFSET + PROJECT_SLOT_COUNT * PROJECT_SLOT_SIZE <= LEGACY_SETTINGS_OFFSET
+);
+
 #[cfg(feature = "launchpad-pro-mk3")]
 const EXPECTED_JEDEC_MANUFACTURER: u8 = 0xc2;
 #[cfg(feature = "launchpad-pro-mk3")]
@@ -240,6 +254,87 @@ impl<'d> ExtFlash<'d> {
         }
 
         Ok(true)
+    }
+
+    /// Reads from a Seq95 project slot. Returns false on error or a bad slot.
+    #[cfg(feature = "launchpad-pro-mk3")]
+    pub fn read_project_slot(&mut self, slot: u32, offset: u32, data: &mut [u8]) -> bool {
+        if slot >= PROJECT_SLOT_COUNT || offset as usize + data.len() > PROJECT_SLOT_SIZE as usize {
+            return false;
+        }
+        let Some(flash) = self.flash.as_mut() else {
+            return false;
+        };
+        flash
+            .read(PROJECT_REGION_OFFSET + slot * PROJECT_SLOT_SIZE + offset, data)
+            .is_ok()
+    }
+
+    /// Erases and rewrites a whole Seq95 project slot with `data`.
+    ///
+    /// `owned` decides whether the slot's current contents may be replaced:
+    /// it receives the first bytes of the slot. A slot is also writable when
+    /// it is fully erased. Anything else is left untouched and false is
+    /// returned, so foreign data on the chip is never destroyed.
+    #[cfg(feature = "launchpad-pro-mk3")]
+    pub fn write_project_slot(&mut self, slot: u32, data: &[u8], owned: fn(&[u8]) -> bool) -> bool {
+        if slot >= PROJECT_SLOT_COUNT || data.len() > PROJECT_SLOT_SIZE as usize {
+            return false;
+        }
+        let base = PROJECT_REGION_OFFSET + slot * PROJECT_SLOT_SIZE;
+        let (flash, sector_buf) = (&mut self.flash, &mut self.sector_buf);
+        let Some(flash) = flash.as_mut() else {
+            return false;
+        };
+
+        // Ownership check: ours, or completely blank.
+        for sector in 0..(PROJECT_SLOT_SIZE as usize / SECTOR_SIZE) {
+            if flash
+                .read(base + (sector * SECTOR_SIZE) as u32, sector_buf)
+                .is_err()
+            {
+                return false;
+            }
+            if sector == 0 && owned(&sector_buf[..]) {
+                break;
+            }
+            if sector_buf.iter().any(|byte| *byte != 0xff) {
+                return false;
+            }
+        }
+
+        for sector in 0..(PROJECT_SLOT_SIZE as usize / SECTOR_SIZE) {
+            let sector_base = base + (sector * SECTOR_SIZE) as u32;
+            if flash.erase_sectors(sector_base, 1).is_err() {
+                return false;
+            }
+            let start = sector * SECTOR_SIZE;
+            if start >= data.len() {
+                continue;
+            }
+            let end = min(data.len(), start + SECTOR_SIZE);
+            sector_buf.fill(0xff);
+            sector_buf[..end - start].copy_from_slice(&data[start..end]);
+            for page_off in (0..SECTOR_SIZE).step_by(PAGE_SIZE) {
+                let page = &mut sector_buf[page_off..page_off + PAGE_SIZE];
+                if page.iter().all(|byte| *byte == 0xff) {
+                    continue;
+                }
+                if flash.write_bytes(sector_base + page_off as u32, page).is_err() {
+                    return false;
+                }
+            }
+        }
+
+        // Verify.
+        let mut verify = [0u8; PAGE_SIZE];
+        for (i, chunk) in data.chunks(PAGE_SIZE).enumerate() {
+            let buf = &mut verify[..chunk.len()];
+            if flash.read(base + (i * PAGE_SIZE) as u32, buf).is_err() || buf != chunk {
+                return false;
+            }
+        }
+        true
     }
 
     pub fn info(&mut self) -> ExtFlashInfo {

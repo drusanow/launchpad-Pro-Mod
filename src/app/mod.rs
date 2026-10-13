@@ -9,6 +9,8 @@ pub mod host;
 pub mod palette_editor;
 pub mod performance;
 pub mod programmer;
+#[cfg(feature = "launchpad-pro-mk3")]
+pub mod seq95;
 pub mod setup;
 
 pub use crate::sys::midi::MidiPort;
@@ -25,4 +27,6 @@ pub enum AppId {
     Programmer,
     Daw,
     PaletteEditor,
+    #[cfg(feature = "launchpad-pro-mk3")]
+    Seq95,
 }
